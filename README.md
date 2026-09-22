@@ -88,7 +88,7 @@ Broker-first: все внешние сервисы через Access & Integrati
 | Сервис | Профиль Broker | Доставка секрета |
 |---|---|---|
 | AssemblyAI | `assemblyai` (LOCAL_ENV) | env-инъекция в one-shot воркер |
-| DeepSeek | `deepseek` | Broker-owned inference |
+| DeepSeek | `deepseek` (LOCAL_ENV) | env-инъекция в one-shot воркер |
 | Telegram TEST | `telegram_course_test_bot` | env + allowlist чата |
 | PostgreSQL | `postgresql` | собственный контейнер meeting-db (изоляция от Mag_OS core) |
 | n8n | `n8n` | optional event, non-blocking |
@@ -146,10 +146,10 @@ docker compose up -d --build
 
 ## Limitations
 
-- DeepSeek-анализ требует доставки credentials (в момент написания vault-слот заблокирован; встреча переходит в RETRY_PENDING и доанализируется автоматически после восстановления);
 - Telegram TEST-бот ограничен зарегистрированным тест-чатом (policy);
 - diarization синтетических голосов одного движка сливается в одного спикера (ограничение провайдера, на живых диалогах не воспроизводится);
-- NocoDB — read-only по политике Broker.
+- NocoDB — read-only по политике Broker;
+- анализ длинных встреч ограничен компактным выводом аудита (worker-контракт Broker).
 
 ## Roadmap
 
