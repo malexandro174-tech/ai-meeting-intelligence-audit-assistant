@@ -194,13 +194,19 @@ class MeetingPipeline:
             except OSError:
                 pass
 
-    def resume_pending(self) -> int:
-        """After restart: continue resumable meetings instead of re-uploading."""
-        resumed = 0
+    def resume_pending(self) -> list[dict[str, Any]]:
+        """After restart: continue resumable meetings instead of re-uploading.
+
+        Returns completed rows (meeting_id, source) so the runtime can deliver
+        the finished result to the originating Telegram chat automatically.
+        """
+        completed: list[dict[str, Any]] = []
         for row in self.store.resumable_meetings():
             try:
-                self.process(row["meeting_id"], resume=True)
-                resumed += 1
+                result = self.process(row["meeting_id"], resume=True)
             except MeetingPipelineError:
                 continue
-        return resumed
+            if result.get("state") == "COMPLETED":
+                meeting = self.store.get_meeting(row["meeting_id"]) or {}
+                completed.append({"meeting_id": row["meeting_id"], "source": meeting.get("source") or ""})
+        return completed

@@ -70,8 +70,24 @@ def main() -> int:
     signal.signal(signal.SIGINT, _stop)
     signal.signal(signal.SIGTERM, _stop)
 
-    resumed = pipeline.resume_pending()
-    bus.emit("runtime.resumed", "meeting-runtime", resumed=resumed)
+    completed = pipeline.resume_pending()
+    bus.emit("runtime.resumed", "meeting-runtime", completed=len(completed))
+
+    # A finished deferral must reach the user without a re-upload.
+    for row in completed:
+        if row.get("source") == "telegram_test" and settings.telegram_allowed_chat_ids:
+            try:
+                result = {"analysis": store.load_analysis(row["meeting_id"]),
+                          "transcript": store.load_transcript(row["meeting_id"])}
+                if result["analysis"]:
+                    from .telegramui.bot import _result_text
+                    from .telegramui.chunking import split_message, telegram_safe
+                    chat_id = settings.telegram_allowed_chat_ids[0]
+                    for chunk in split_message(telegram_safe(_result_text(result))):
+                        send(chat_id, chunk)
+                    bus.emit("telegram.sent", row["meeting_id"], kind="result_resume")
+            except Exception as exc:  # noqa: BLE001 — delivery must not crash the runtime
+                bus.emit("telegram.resume_delivery_failed", row["meeting_id"], error=type(exc).__name__)
 
     api = TelegramApi(settings.telegram_bot_token_env)
     send = _send_adapter(pipeline.gateway, settings)

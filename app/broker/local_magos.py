@@ -84,17 +84,21 @@ class _LocalAnalysis:
     def complete(self, system_prompt: str, user_payload: dict[str, Any]) -> dict[str, Any]:
         """Canonical bounded inference: policy, injection and audit stay inside Broker."""
         import json as _json
+        import os as _os
 
         from Core.AccessIntegrationBroker.broker.client import complete_deepseek
         from Core.AccessIntegrationBroker.broker.deepseek_adapter import DeepSeekBrokerError
         from Core.AccessIntegrationBroker.broker.models import AccessRequest
+        # Worker contract: exact endpoint + deepseek-* model; resolved model comes from env, not code paths.
         payload = {
+            "endpoint": "https://api.deepseek.com/chat/completions",
+            "model": _os.getenv("DEEPSEEK_MODEL", "deepseek-chat"),
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": _json.dumps(user_payload, ensure_ascii=False)},
             ],
-            "response_format": {"type": "json_object"},
             "temperature": 0.1,
+            "max_tokens": 800,
         }
         # Pre-flight capability check: an undelivered credential is a wait-and-retry state.
         decision = self._broker.request_access(AccessRequest(

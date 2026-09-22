@@ -66,7 +66,14 @@ def validate_analysis(payload: dict[str, Any], transcript: Transcript, profile: 
     raw_audit = payload.get("audit_results") or {}
     audit = analysis.audit_results
     audit.profile_id = str(raw_audit.get("profile_id") or profile.profile_id)
-    for item in raw_audit.get("criteria") or []:
+    known_criteria = set(profile.criterion_ids())
+    criteria_rows = [item for item in raw_audit.get("criteria") or [] if isinstance(item, dict)]
+    if not criteria_rows:
+        # Tolerant fallback: some models emit a flat {criterion: value} map instead of the schema.
+        criteria_rows = [{"criterion": key, "value": value}
+                         for key, value in payload.items()
+                         if key in known_criteria and isinstance(value, str)]
+    for item in criteria_rows:
         criterion = str(item.get("criterion") or "").strip()
         if not criterion:
             continue
@@ -77,18 +84,19 @@ def validate_analysis(payload: dict[str, Any], transcript: Transcript, profile: 
             {"criterion": criterion, "value": value, "evidence": evidence}))
     audit.overall_status = raw_audit.get("overall_status") or analysis.overall_status
     for row in payload.get("actions") or []:
-        if _evidence_supported(row.get("source_utterance"), transcript_text):
+        if isinstance(row, dict) and _evidence_supported(row.get("source_utterance"), transcript_text):
             analysis.actions.append(ActionItem.model_validate(row))
     for row in payload.get("decisions") or []:
-        if _evidence_supported(row.get("evidence"), transcript_text):
+        if isinstance(row, dict) and _evidence_supported(row.get("evidence"), transcript_text):
             analysis.decisions.append(Decision.model_validate(row))
     for row in payload.get("commitments") or []:
-        if _evidence_supported(row.get("evidence"), transcript_text):
+        if isinstance(row, dict) and _evidence_supported(row.get("evidence"), transcript_text):
             analysis.commitments.append(Commitment.model_validate(row))
     for row in payload.get("open_questions") or []:
-        analysis.open_questions.append(OpenQuestion.model_validate(row))
+        if isinstance(row, dict):
+            analysis.open_questions.append(OpenQuestion.model_validate(row))
     for row in payload.get("risks") or []:
-        if _evidence_supported(row.get("evidence"), transcript_text):
+        if isinstance(row, dict) and _evidence_supported(row.get("evidence"), transcript_text):
             analysis.risks.append(Risk.model_validate(row))
     analysis.recommendations = [str(r) for r in payload.get("recommendations") or []][:12]
     analysis.model_meta = {"profile": profile.profile_id}

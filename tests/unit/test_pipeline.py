@@ -155,7 +155,7 @@ class PipelineTests(unittest.TestCase):
             def speech(self):
                 raise AssertionError("upload must not run again on resume")
         resumed = pipeline.resume_pending()
-        self.assertGreaterEqual(resumed, 1)
+        self.assertGreaterEqual(len(resumed), 1)
         self.assertEqual(self.store.get_meeting(intake["meeting_id"])["state"], "COMPLETED")
 
     def test_persistence_and_kpi(self) -> None:

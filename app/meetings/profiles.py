@@ -47,6 +47,7 @@ class AuditProfile:
 
     def system_prompt(self) -> str:
         """System instructions ONLY; meeting data is delivered separately as untrusted input."""
+        import json
         sections = [
             f"РОЛЬ: {self.role}",
             f"ЗАДАЧА: {self.task_objective}",
@@ -56,7 +57,12 @@ class AuditProfile:
             "КРИТЕРИИ АУДИТА (для каждого: значение из встречи ИЛИ NOT_DISCLOSED/NOT_SPECIFIED/UNKNOWN + короткая цитата-доказательство):",
         ]
         sections += [f"- {c.get('id')}: {c.get('description')}" for c in self.criteria]
-        sections.append("Отвечай ТОЛЬКО валидным JSON по schema. Никакого текста вне JSON.")
+        sections.append(
+            "ФОРМАТ ОТВЕТА — строго один JSON-объект точно такой структуры (никаких ключей вне схемы):\n"
+            + json.dumps(self.output_schema, ensure_ascii=False)
+            + "\nЗначения компактные: критерий ≤10 слов, evidence ≤8 слов, не более 5 actions/risks/recommendations."
+        )
+        sections.append("Отвечай ТОЛЬКО валидным JSON. Никакого текста вне JSON.")
         return "\n\n".join(sections)
 
     def criterion_ids(self) -> list[str]:

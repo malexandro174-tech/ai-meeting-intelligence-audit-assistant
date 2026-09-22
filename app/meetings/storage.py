@@ -238,9 +238,10 @@ class MeetingStore:
         """Rows whose state allows resume after restart (polling continuation, re-analysis)."""
         with self._conn() as conn:
             rows = conn.execute(
-                "SELECT meeting_id, state, transcript_id FROM meetings WHERE state IN (%s,%s,%s,%s)",
+                "SELECT meeting_id, state, transcript_id FROM meetings WHERE state IN (%s,%s,%s,%s,%s)",
                 (MeetingState.MEDIA_PREPARATION.value, MeetingState.TRANSCRIBING.value,
-                 MeetingState.TRANSCRIBED.value, MeetingState.RETRY_PENDING.value)).fetchall()
+                 MeetingState.TRANSCRIBED.value, MeetingState.RETRY_PENDING.value,
+                 MeetingState.FAILED.value)).fetchall()
         return [{"meeting_id": r[0], "state": r[1], "transcript_id": r[2]} for r in rows]
 
     def recent_meetings(self, limit: int = 20) -> list[dict[str, Any]]:

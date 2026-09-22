@@ -136,13 +136,22 @@ class MeetingBot:
             self.send(chat_id, _result_text(result))
             self.bus.emit("telegram.sent", intake["meeting_id"], kind="result")
         except MeetingPipelineError as exc:
-            hint = {
-                "MEDIA_TOO_LARGE": "Файл слишком большой — пришли MP3 до 45 МБ.",
-                "UNSUPPORTED_MEDIA": "Формат не поддерживается — пришли MP3/WAV/M4A/MP4.",
-                "INVALID_MEDIA": "Не удалось декодировать файл — проверь, что запись воспроизводится.",
-                "CREDENTIAL_UNAVAILABLE": "Сервис анализа временно недоступен (учётные данные не доставлены). Транскрипция может быть готова — попробуй позже.",
-            }.get(exc.code, "Произошла ошибка обработки. Попробуй ещё раз позже.")
-            self.send(chat_id, f"❌ {hint}")
+            state = None
+            try:
+                state = self.pipeline.store.get_meeting(intake["meeting_id"])["state"] if intake.get("meeting_id") else None
+            except Exception:
+                state = None
+            if exc.retryable or state == "RETRY_PENDING":
+                # Transient provider gap: the recording is safe, no re-upload needed.
+                self.send(chat_id, "⏸ Анализ временно отложен. Запись и транскрипция сохранены — "
+                                   "повторная загрузка не требуется; итог придёт автоматически после восстановления сервиса.")
+            else:
+                hint = {
+                    "MEDIA_TOO_LARGE": "Файл слишком большой — пришли MP3 до 45 МБ.",
+                    "UNSUPPORTED_MEDIA": "Формат не поддерживается — пришли MP3/WAV/M4A/MP4.",
+                    "INVALID_MEDIA": "Не удалось декодировать файл — проверь, что запись воспроизводится.",
+                }.get(exc.code, "Произошла ошибка обработки. Попробуй ещё раз позже.")
+                self.send(chat_id, f"❌ {hint}")
             self.bus.emit("meeting.failed", "telegram", error_code=exc.code)
 
     def _status_text(self) -> str:
