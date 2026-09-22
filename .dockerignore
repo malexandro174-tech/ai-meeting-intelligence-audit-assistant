@@ -1,0 +1,12 @@
+data
+__pycache__
+*.pyc
+.pytest_cache
+.env
+*.egg-info
+tests
+docs
+fixtures/*.mp3
+fixtures/*.wav
+fixtures/*.mp4
+.git

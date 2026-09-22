@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Meeting Intelligence Director Contracts v1.0",
+  "description": "Stable contracts for the future Mag_OS Directors Framework (CEO → Director → AI Employee).",
+  "definitions": {
+    "MeetingUpwardReport": {
+      "type": "object",
+      "required": ["contract", "version", "agent_id", "period", "meetings_processed", "total_minutes", "failed_meetings", "open_actions", "critical_risks", "important_decisions", "unresolved_questions"],
+      "properties": {
+        "contract": {"const": "MeetingUpwardReport"},
+        "version": {"const": "1.0"},
+        "agent_id": {"type": "string"},
+        "period": {"type": "string"},
+        "meetings_processed": {"type": "integer"},
+        "total_minutes": {"type": "number"},
+        "failed_meetings": {"type": "integer"},
+        "open_actions": {"type": "integer"},
+        "critical_risks": {"type": "integer"},
+        "important_decisions": {"type": "integer"},
+        "unresolved_questions": {"type": "integer"},
+        "recommendations": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "KpiSnapshot": {
+      "type": "object",
+      "required": ["meetings_count", "total_duration_minutes", "avg_processing_time", "transcription_success_rate", "analysis_success_rate", "open_actions_count", "overdue_actions_count", "critical_risks_count", "avg_audit_score"],
+      "properties": {
+        "meetings_count": {"type": "integer"},
+        "total_duration_minutes": {"type": "number"},
+        "avg_processing_time": {"type": "number"},
+        "transcription_success_rate": {"type": "number"},
+        "analysis_success_rate": {"type": "number"},
+        "open_actions_count": {"type": "integer"},
+        "overdue_actions_count": {"type": "integer"},
+        "critical_risks_count": {"type": "integer"},
+        "avg_audit_score": {"type": "number", "description": "1.0=GREEN .. 3.0=RED"}
+      }
+    },
+    "MeetingEscalation": {
+      "type": "object",
+      "required": ["contract", "version", "meeting_id", "target_role", "severity", "reason", "evidence", "recommended_action"],
+      "properties": {
+        "contract": {"const": "MeetingEscalation"},
+        "version": {"const": "1.0"},
+        "meeting_id": {"type": "string"},
+        "target_role": {"enum": ["CommercialDirector", "FinancialDirector", "EngineeringDirector", "HumanOwner"]},
+        "severity": {"enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"]},
+        "reason": {"type": "string"},
+        "evidence": {"type": "string"},
+        "recommended_action": {"type": "string"}
+      }
+    },
+    "FinanceEvent": {
+      "type": "object",
+      "required": ["event", "meeting_id", "evidence"],
+      "properties": {
+        "event": {"enum": ["BUDGET_MENTIONED", "PRICE_DISCUSSION", "REFUND_REQUEST", "PAYMENT_RISK", "REVENUE_OPPORTUNITY"]},
+        "meeting_id": {"type": "string"},
+        "evidence": {"type": "string"}
+      }
+    },
+    "EngineeringEvent": {
+      "type": "object",
+      "required": ["event", "meeting_id", "evidence"],
+      "properties": {
+        "event": {"enum": ["TECHNICAL_BLOCKER", "INTEGRATION_REQUIRED", "SECURITY_CONCERN", "INFRASTRUCTURE_DEPENDENCY"]},
+        "meeting_id": {"type": "string"},
+        "evidence": {"type": "string"}
+      }
+    }
+  }
+}

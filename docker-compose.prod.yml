@@ -1,0 +1,47 @@
+# Production-like VPS stack. Memory limits respect a busy shared host.
+# Secrets are injected at deploy time (canonical scoped env delivery), never committed.
+services:
+  meeting-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: meeting
+      POSTGRES_PASSWORD: ${MEETING_DB_PASSWORD:?set in server .env}
+      POSTGRES_DB: meeting_intelligence
+    volumes:
+      - meeting-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U meeting -d meeting_intelligence"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    mem_limit: 160m
+    # Internal network only: the database port is never published.
+
+  meeting-assistant:
+    build: .
+    depends_on:
+      meeting-db:
+        condition: service_healthy
+    environment:
+      BROKER_TRANSPORT: container_env
+      MEETING_DATABASE_URL: postgresql://meeting:${MEETING_DB_PASSWORD}@meeting-db:5432/meeting_intelligence
+      ASSEMBLYAI_API_KEY: ${ASSEMBLYAI_API_KEY:?set in server .env}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
+      TELEGRAM_COURSE_TEST_BOT_TOKEN: ${TELEGRAM_COURSE_TEST_BOT_TOKEN:?set in server .env}
+      MEETING_TELEGRAM_ALLOWED_CHAT_IDS: "-5487263463"
+      OPERATOR_VIEW_ENABLED: "1"
+      OPERATOR_VIEW_PORT: "8080"
+      MEETING_SOURCE_RETENTION_SECONDS: "3600"
+    volumes:
+      - meeting-data:/srv/meeting/data
+    restart: unless-stopped
+    mem_limit: 384m
+    logging:
+      driver: json-file
+      options: {max-size: "10m", max-file: "3"}
+
+volumes:
+  meeting-db-data:
+  meeting-data:

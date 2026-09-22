@@ -1,0 +1,44 @@
+# Local development stack: isolated meeting-db (never touches Mag_OS core PostgreSQL).
+services:
+  meeting-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: meeting
+      POSTGRES_PASSWORD: meeting
+      POSTGRES_DB: meeting_intelligence
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - meeting-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U meeting -d meeting_intelligence"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  meeting-assistant:
+    build: .
+    depends_on:
+      meeting-db:
+        condition: service_healthy
+    environment:
+      BROKER_TRANSPORT: container_env
+      MEETING_DATABASE_URL: postgresql://meeting:meeting@meeting-db:5432/meeting_intelligence
+      # Scoped env delivery (canonical LOCAL_ENV policy): values come from the local .env at runtime,
+      # they are never committed. See .env.example.
+      ASSEMBLYAI_API_KEY: ${ASSEMBLYAI_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
+      TELEGRAM_COURSE_TEST_BOT_TOKEN: ${TELEGRAM_COURSE_TEST_BOT_TOKEN:-}
+      MEETING_TELEGRAM_ALLOWED_CHAT_IDS: "-5487263463"
+      OPERATOR_VIEW_ENABLED: "1"
+      OPERATOR_VIEW_PORT: "8080"
+    ports:
+      - "127.0.0.1:8081:8080"
+    volumes:
+      - meeting-data:/srv/meeting/data
+    restart: unless-stopped
+
+volumes:
+  meeting-db-data:
+  meeting-data:
