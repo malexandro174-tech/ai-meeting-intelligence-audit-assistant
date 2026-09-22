@@ -73,6 +73,9 @@ def main() -> int:
     completed = pipeline.resume_pending()
     bus.emit("runtime.resumed", "meeting-runtime", completed=len(completed))
 
+    api = TelegramApi(settings.telegram_bot_token_env)
+    send = _send_adapter(pipeline.gateway, settings)
+
     # A finished deferral must reach the user without a re-upload.
     for row in completed:
         if row.get("source") == "telegram_test" and settings.telegram_allowed_chat_ids:
@@ -88,9 +91,6 @@ def main() -> int:
                     bus.emit("telegram.sent", row["meeting_id"], kind="result_resume")
             except Exception as exc:  # noqa: BLE001 — delivery must not crash the runtime
                 bus.emit("telegram.resume_delivery_failed", row["meeting_id"], error=type(exc).__name__)
-
-    api = TelegramApi(settings.telegram_bot_token_env)
-    send = _send_adapter(pipeline.gateway, settings)
 
     def api_call(chat_id: str, text: str) -> None:
         send(chat_id, text)
