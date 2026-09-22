@@ -36,6 +36,8 @@ services:
       MEETING_SOURCE_RETENTION_SECONDS: "3600"
     volumes:
       - meeting-data:/srv/meeting/data
+    ports:
+      - "127.0.0.1:8091:8080"   # localhost-only; published externally via the reverse-proxy subpath
     restart: unless-stopped
     mem_limit: 384m
     logging:
