@@ -122,7 +122,11 @@ Broker-first: все внешние сервисы через Access & Integrati
 1. Откройте TEST-чат Telegram (бот `@test_joba2026_bot`);
 2. `/start` → отправьте короткий MP3 диалога;
 3. статусы: «Файл получен» → … → готовый итог с действиями/рисками;
-4. Operator view: `http://127.0.0.1:8081/` (тёмная тема: список встреч, статусы, спикеры, действия, риски).
+4. Operator view (production deploy): [https://ai.mag-astro.ru/meeting-intelligence/](https://ai.mag-astro.ru/meeting-intelligence/) — тёмная тема: список встреч, статусы, спикеры, действия, риски.
+
+## Deployment
+
+Продакшн-стек развёрнут на VPS (`docker-compose.prod.yml`): контейнеры `meeting-assistant` + `meeting-db`, лимиты памяти 384m/160m, healthchecks, restart-policy, внутренняя сеть для БД, публикуется только operator view через reverse-proxy subpath `/meeting-intelligence/` (localhost-only порт 8091). Рестарт-тест пройден: история встреч и отчёты сохраняются, повторной обработки не происходит.
 
 ## Quick Start
 
