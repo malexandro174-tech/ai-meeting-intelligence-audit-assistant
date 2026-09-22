@@ -21,12 +21,25 @@ MAGIC_SIGNATURES: tuple[tuple[str, bytes], ...] = (
 
 
 def safe_filename(original: str) -> str:
-    """Normalize a user-supplied filename into a storage-safe, flat name."""
-    name = unicodedata.normalize("NFKD", Path(original.replace("\\", "/")).name).encode("ascii", "ignore").decode("ascii")
-    name = re.sub(r"[^A-Za-z0-9._-]+", "_", name).strip("._")
-    if not name:
-        name = "meeting_media"
-    return name[:120]
+    """Normalize a user-supplied filename into a storage-safe, flat name.
+
+    Non-ASCII basenames (e.g. Cyrillic) may transliterate to nothing; the
+    extension must survive on its own so validation never loses it.
+    """
+    raw = Path(original.replace("\\", "/")).name
+    if "." in raw:
+        stem, ext = raw.rsplit(".", 1)
+        has_extension = True
+    else:
+        stem, ext, has_extension = raw, "", False
+    stem_clean = re.sub(r"[^A-Za-z0-9._-]+", "_",
+                        unicodedata.normalize("NFKD", stem).encode("ascii", "ignore").decode("ascii")).strip("._")
+    ext_clean = re.sub(r"[^A-Za-z0-9_-]+", "", ext)[:10]
+    if not stem_clean:
+        stem_clean = "meeting_media"
+    if has_extension and ext_clean:
+        return (stem_clean[:100] + "." + ext_clean)[:120]
+    return stem_clean[:120]
 
 
 def storage_path(directory: Path, filename: str) -> Path:

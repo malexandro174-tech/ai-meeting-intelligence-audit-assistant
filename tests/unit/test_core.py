@@ -32,6 +32,12 @@ class SecurityTests(unittest.TestCase):
         resolved = storage_path(target, "../escape.mp3").resolve()
         self.assertTrue(target == resolved.parent or target in resolved.parents)  # always stays inside
 
+    def test_safe_filename_preserves_extension_for_non_ascii_basenames(self) -> None:
+        # Cyrillic basename collapses, but the extension must survive (root cause of диалог.MP3 rejection).
+        self.assertEqual(safe_filename("диалог.MP3"), "meeting_media.MP3")
+        self.assertEqual(safe_filename("запись.wav"), "meeting_media.wav")
+        self.assertEqual(safe_filename("no_extension"), "no_extension")
+
     def test_magic_sniffing(self) -> None:
         self.assertEqual(sniff_media_kind(b"ID3\x04\x00"), "audio")
         self.assertEqual(sniff_media_kind(b"\x00\x00\x00\x18ftypmp42"), "video")
@@ -40,6 +46,58 @@ class SecurityTests(unittest.TestCase):
     def test_content_hash_stable(self) -> None:
         self.assertEqual(content_hash(b"abc"), content_hash(b"abc"))
         self.assertNotEqual(content_hash(b"abc"), content_hash(b"abd"))
+
+
+class MediaFormatValidationTests(unittest.TestCase):
+    """Case-insensitive extensions + content-based rejection (fake.MP3 must FAIL)."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        import subprocess
+        cls.dir = PROJECT / "data" / "media"
+        cls.dir.mkdir(parents=True, exist_ok=True)
+        base = cls.dir / "fmt_base.mp3"
+        wav = cls.dir / "fmt_base.wav"
+        mp4 = cls.dir / "fmt_base.mp4"
+        ffmpeg = "ffmpeg"
+        subprocess.run([ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
+                        "-i", "sine=frequency=300:duration=2", "-b:a", "64k", str(base)],
+                       check=True, capture_output=True, timeout=60)
+        subprocess.run([ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
+                        "-i", "sine=frequency=300:duration=2", str(wav)],
+                       check=True, capture_output=True, timeout=60)
+        subprocess.run([ffmpeg, "-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi",
+                        "-i", "sine=frequency=300:duration=2", "-f", "lavfi", "-i", "color=c=0x223344:s=160x120:d=2",
+                        "-shortest", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p",
+                        "-b:a", "64k", str(mp4)], check=True, capture_output=True, timeout=120)
+        cls.base, cls.wav, cls.mp4 = base, wav, mp4
+
+    def _accepts(self, source: Path, name: str) -> bool:
+        from app.media.validator import validate_media
+        target = self.dir / name
+        target.write_bytes(source.read_bytes())
+        try:
+            validate_media(target, max_bytes=50 * 1024 * 1024, max_seconds=4 * 3600)
+            return True
+        except Exception:
+            return False
+        finally:
+            target.unlink(missing_ok=True)
+
+    def test_case_insensitive_extensions_pass(self) -> None:
+        for name in ("audio.mp3", "audio.MP3", "audio.Mp3", "audio.wav", "audio.WAV", "video.MP4"):
+            self.assertTrue(self._accepts(self.base if name.endswith(("mp3", "MP3", "Mp3")) else
+                                          self.wav if "wav" in name.casefold() else self.mp4, name),
+                            f"{name} must be accepted")
+
+    def test_fake_mp3_content_fails(self) -> None:
+        target = self.dir / "fake.MP3"
+        target.write_bytes(b"this is definitely not an mp3 file" * 10)
+        from app.media.validator import validate_media
+        from app.core.events import MeetingPipelineError
+        with self.assertRaises(MeetingPipelineError):
+            validate_media(target, max_bytes=50 * 1024 * 1024, max_seconds=4 * 3600)
+        target.unlink(missing_ok=True)
 
 
 class NormalizationTests(unittest.TestCase):

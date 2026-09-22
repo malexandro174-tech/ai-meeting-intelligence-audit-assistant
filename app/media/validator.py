@@ -42,7 +42,7 @@ def validate_media(path: Path, *, max_bytes: int, max_seconds: int, ffprobe_bin:
     size = path.stat().st_size
     if size > max_bytes:
         raise MeetingPipelineError("MEDIA_TOO_LARGE", f"{size} bytes exceeds limit {max_bytes}")
-    if path.suffix.lower() not in ALLOWED_MEDIA_EXTENSIONS:
+    if path.suffix.casefold() not in {ext.casefold() for ext in ALLOWED_MEDIA_EXTENSIONS}:
         raise MeetingPipelineError("UNSUPPORTED_MEDIA", f"extension {path.suffix} not allowed")
     header = path.open("rb").read(16)
     kind = sniff_media_kind(header)
