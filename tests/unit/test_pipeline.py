@@ -158,6 +158,28 @@ class PipelineTests(unittest.TestCase):
         self.assertGreaterEqual(len(resumed), 1)
         self.assertEqual(self.store.get_meeting(intake["meeting_id"])["state"], "COMPLETED")
 
+    def test_reprocess_relinks_legacy_extensionless_filename(self) -> None:
+        """Old runs stored 'диалог.MP3' as extension-less 'MP3' and could never reprocess.
+
+        Re-submitting the same content must re-link the meeting to the fresh
+        upload stored under the current safe-name policy.
+        """
+        pipeline = self._pipeline(FakeGateway())
+        first = pipeline.accept_media(self.media, original_name="диалог.MP3", source="test", file_unique_id="legacy1")
+        # Simulate the legacy stuck state: extension-less filename + FAILED.
+        with self.store._conn() as conn:
+            conn.execute("UPDATE meetings SET filename='MP3', state='FAILED' WHERE meeting_id=%s",
+                         (first["meeting_id"],))
+        legacy = self.settings.media_dir / "MP3"
+        legacy.write_bytes(self.media.read_bytes())
+        second = pipeline.accept_media(self.media, original_name="диалог.MP3", source="test", file_unique_id="legacy2")
+        self.assertTrue(second.get("reprocess"))
+        self.assertEqual(second["meeting_id"], first["meeting_id"])
+        healed = self.store.get_meeting(first["meeting_id"])["filename"]
+        self.assertTrue(healed.endswith(".MP3"), f"filename must regain extension, got {healed!r}")
+        result = pipeline.process(first["meeting_id"])
+        self.assertEqual(result["state"], "COMPLETED")
+
     def test_persistence_and_kpi(self) -> None:
         kpi = self.store.kpi_snapshot()
         self.assertGreaterEqual(kpi["meetings_count"], 1)

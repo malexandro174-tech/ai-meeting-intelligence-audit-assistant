@@ -59,7 +59,11 @@ class MeetingPipeline:
             existing_state = str(row.get("state") or "")
             if existing_state in {MeetingState.FAILED.value, MeetingState.RETRY_PENDING.value}:
                 row["reprocess"] = True
-                self._event("meeting.retry_requested", row["meeting_id"], previous_state=existing_state)
+                # Re-link the meeting to the fresh upload stored under the CURRENT safe-name
+                # policy, so a legacy extension-less stored name cannot poison reprocessing.
+                self.store.set_filename(row["meeting_id"], stored.name)
+                self._event("meeting.retry_requested", row["meeting_id"], previous_state=existing_state,
+                            relinked_file=stored.name)
             else:
                 stored.unlink(missing_ok=True)   # known content: do not keep a second copy
                 self._event("meeting.duplicate", row["meeting_id"], requested=meeting_id)

@@ -133,6 +133,11 @@ class MeetingStore:
                  MeetingState.RECEIVED.value))
         return {"meeting_id": meeting_id, "state": MeetingState.RECEIVED.value, "duplicate": False}
 
+    def set_filename(self, meeting_id: str, filename: str) -> None:
+        with self._conn() as conn:
+            conn.execute("UPDATE meetings SET filename=%s, updated_at=now() WHERE meeting_id=%s",
+                         (filename, meeting_id))
+
     def set_state(self, meeting_id: str, state: MeetingState, *, error_code: str | None = None,
                   error_detail: str | None = None) -> None:
         with self._conn() as conn:
