@@ -6,3 +6,8 @@ __pycache__/
 .env
 .venv/
 artifacts_private/
+
+# Private course-submission artifacts (not public)
+COURSE_HOMEWORK_REPORT.md
+HOMEWORK_TEXT_READY.md
+HOMEWORK_SCREENSHOTS.md
