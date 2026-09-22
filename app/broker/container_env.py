@@ -141,7 +141,9 @@ class _EnvAnalysis:
         self._gateway._require("deepseek", "MODEL_INFERENCE")
         api_key = os.getenv("DEEPSEEK_API_KEY", "")
         if not api_key:
-            raise BrokerGatewayError("CREDENTIAL_UNAVAILABLE", "DEEPSEEK_API_KEY not delivered to container")
+            # Wait-and-retry state: the deployment will deliver the credential later.
+            raise BrokerGatewayError("CREDENTIAL_UNAVAILABLE", "DEEPSEEK key not delivered to container",
+                                     retryable=True)
         model = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")  # resolved provider default, not hardcoded model id in code paths
         payload = {"model": model, "temperature": 0.1, "response_format": {"type": "json_object"},
                    "messages": [{"role": "system", "content": system_prompt},
